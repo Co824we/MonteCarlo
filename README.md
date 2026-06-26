@@ -1,44 +1,19 @@
-# Trading Analytics Discord Bot
+# ALGO Edge Trading Analytics — Streamlit App
 
-A Discord slash-command bot for analyzing uploaded balance-history CSV files.
+This is a Streamlit version of the trading analytics tool.
 
-It reproduces the analyses we discussed:
+Users upload a balance-history CSV and the app generates:
 
 - Daily return distribution
-- Monte Carlo projections
+- 1-year / 10-year Monte Carlo projections
 - Monte Carlo assumption check
 - Return magnitude / volatility clustering check
 - Sit-out-rule overlay
 - Full report zip
 
-## Commands
-
-### `/return_distribution`
-Uploads a balance-history CSV and returns the daily return distribution chart.
-
-### `/monte_carlo`
-Uploads a balance-history CSV and returns a 1-year or 10-year Monte Carlo chart.
-
-Options:
-- `horizon`: 1 year or 10 years
-- `paths`: default 1000, capped at 5000
-- `all_paths`: whether to show all simulated paths in the background
-
-### `/assumption_check`
-Checks whether today's trading return predicts the next trading day's return.
-
-### `/magnitude_clustering`
-Checks whether large gains/losses tend to be followed by more large gains/losses.
-
-### `/sitout_overlay`
-Compares the baseline Monte Carlo against a rule where the trader sits out after a negative rolling 3-month period.
-
-### `/full_report`
-Generates all major charts and a summary text file in a zip.
-
 ## CSV requirements
 
-The uploaded CSV needs these columns:
+Required columns:
 
 - `Date`
 - `Day_PL_Percent`
@@ -48,47 +23,31 @@ Optional but recommended:
 
 - `NLV`
 
-The cleaning logic removes:
-
-- zero-return rows
-- deposit/withdrawal rows
-- obvious transfer/accounting artifacts where `|Day_PL_Percent| > 10`
-
-## Local setup
+## Local run
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # Mac/Linux
-# .venv\Scripts\activate    # Windows
-
+source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
+streamlit run streamlit_app.py
 ```
 
-Edit `.env` and add:
+## Deploy on Streamlit Community Cloud
 
-```bash
-DISCORD_TOKEN=your_bot_token_here
-DISCORD_GUILD_ID=your_server_id_here
-```
-
-Then run:
-
-```bash
-python bot.py
-```
-
-## Discord setup
-
-1. Create an application in the Discord Developer Portal.
-2. Add a bot to the application.
-3. Copy the bot token into `.env`.
-4. Invite the bot to your server with:
-   - `bot`
-   - `applications.commands`
+1. Create a GitHub repository.
+2. Upload these files:
+   - `streamlit_app.py`
+   - `trading_analytics.py`
+   - `requirements.txt`
+   - `README.md`
+3. Go to Streamlit Community Cloud.
+4. Click **Create app**.
+5. Choose your GitHub repo, branch, and entrypoint file:
+   - `streamlit_app.py`
+6. Deploy.
 
 ## Notes
 
-During development, use `DISCORD_GUILD_ID` so commands sync directly to your server. Global slash commands can take longer to appear.
+The app does not need Discord tokens, API keys, or secrets.
 
-Do not commit `.env` to GitHub.
+Anyone with the Streamlit app link can upload a CSV and generate charts.
