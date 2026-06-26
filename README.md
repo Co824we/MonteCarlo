@@ -5,10 +5,10 @@ This is a Streamlit version of the trading analytics tool.
 Users upload a balance-history CSV and the app generates:
 
 - Daily return distribution
-- 1-year / 10-year Monte Carlo projections
+- 1-year and 10-year Monte Carlo projections
 - Monte Carlo assumption check
 - Return magnitude / volatility clustering check
-- Sit-out-rule overlay
+- 1-year and 10-year sit-out-rule overlays
 - Full report zip
 
 ## CSV requirements
@@ -34,20 +34,10 @@ streamlit run streamlit_app.py
 
 ## Deploy on Streamlit Community Cloud
 
-1. Create a GitHub repository.
-2. Upload these files:
-   - `streamlit_app.py`
-   - `trading_analytics.py`
-   - `requirements.txt`
-   - `README.md`
-3. Go to Streamlit Community Cloud.
-4. Click **Create app**.
-5. Choose your GitHub repo, branch, and entrypoint file:
-   - `streamlit_app.py`
-6. Deploy.
+Use:
 
-## Notes
+- Repository: your repo
+- Branch: `main`
+- Main file path: `streamlit_app.py`
 
 The app does not need Discord tokens, API keys, or secrets.
-
-Anyone with the Streamlit app link can upload a CSV and generate charts.

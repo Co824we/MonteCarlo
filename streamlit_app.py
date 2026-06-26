@@ -15,7 +15,6 @@ from trading_analytics import (
     sitout_overlay_chart,
 )
 
-
 st.set_page_config(
     page_title="ALGO Edge Trading Analytics",
     page_icon="📈",
@@ -30,8 +29,6 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Balance-history CSV", type=["csv"])
 
     st.header("Monte Carlo Settings")
-    horizon_label = st.selectbox("Horizon", ["1 year", "10 years"])
-    horizon = "1y" if horizon_label == "1 year" else "10y"
     paths = st.slider("Simulation paths", min_value=500, max_value=5000, value=1000, step=500)
     show_all_paths = st.checkbox("Show all simulated paths", value=True)
 
@@ -85,7 +82,7 @@ with tempfile.TemporaryDirectory() as td:
     tabs = st.tabs(
         [
             "Daily Return Distribution",
-            "Monte Carlo",
+            "Monte Carlo Projections",
             "Assumption Check",
             "Magnitude Clustering",
             "Sit-Out Overlay",
@@ -114,27 +111,58 @@ with tempfile.TemporaryDirectory() as td:
         )
 
     with tabs[1]:
-        st.subheader(f"Monte Carlo Projection: {horizon_label}")
-        chart = folder / f"monte_carlo_{horizon}.png"
-        result = monte_carlo_chart(
+        st.subheader("Monte Carlo Projections")
+        st.write("Generates both the 1-year and 10-year projections from the uploaded CSV.")
+
+        chart_1y = folder / "monte_carlo_1y.png"
+        result_1y = monte_carlo_chart(
             data,
-            chart,
-            horizon=horizon,
+            chart_1y,
+            horizon="1y",
             n_paths=paths,
             all_paths=show_all_paths,
         )
-        st.image(str(chart), use_container_width=True)
+
+        chart_10y = folder / "monte_carlo_10y.png"
+        result_10y = monte_carlo_chart(
+            data,
+            chart_10y,
+            horizon="10y",
+            n_paths=paths,
+            all_paths=show_all_paths,
+        )
+
+        st.markdown("### 1-Year Projection")
+        st.image(str(chart_1y), use_container_width=True)
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Median ending NLV", f"${result['median_ending']:,.0f}")
-        c2.metric("10th percentile", f"${result['p10_ending']:,.0f}")
-        c3.metric("90th percentile", f"${result['p90_ending']:,.0f}")
-        c4.metric("Positive paths", f"{result['probability_positive']*100:.1f}%")
+        c1.metric("Median ending NLV", f"${result_1y['median_ending']:,.0f}")
+        c2.metric("10th percentile", f"${result_1y['p10_ending']:,.0f}")
+        c3.metric("90th percentile", f"${result_1y['p90_ending']:,.0f}")
+        c4.metric("Positive paths", f"{result_1y['probability_positive']*100:.1f}%")
 
         st.download_button(
-            "Download chart",
-            data=chart.read_bytes(),
-            file_name=f"monte_carlo_{horizon}.png",
+            "Download 1-year chart",
+            data=chart_1y.read_bytes(),
+            file_name="monte_carlo_1y.png",
+            mime="image/png",
+        )
+
+        st.divider()
+
+        st.markdown("### 10-Year Projection")
+        st.image(str(chart_10y), use_container_width=True)
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Median ending NLV", f"${result_10y['median_ending']:,.0f}")
+        c2.metric("10th percentile", f"${result_10y['p10_ending']:,.0f}")
+        c3.metric("90th percentile", f"${result_10y['p90_ending']:,.0f}")
+        c4.metric("Median CAGR", f"{result_10y['median_cagr']*100:.1f}%")
+
+        st.download_button(
+            "Download 10-year chart",
+            data=chart_10y.read_bytes(),
+            file_name="monte_carlo_10y.png",
             mime="image/png",
         )
 
@@ -167,32 +195,61 @@ with tempfile.TemporaryDirectory() as td:
         )
 
     with tabs[4]:
-        st.subheader(f"Sit-Out Rule Overlay: {horizon_label}")
+        st.subheader("Sit-Out Rule Overlay")
         st.write("Compares the baseline Monte Carlo against sitting out after a negative rolling 3-month period.")
-        chart = folder / f"sitout_overlay_{horizon}.png"
-        result = sitout_overlay_chart(
+
+        sitout_1y = folder / "sitout_overlay_1y.png"
+        sitout_result_1y = sitout_overlay_chart(
             data,
-            chart,
-            horizon=horizon,
+            sitout_1y,
+            horizon="1y",
             n_paths=paths,
         )
-        st.image(str(chart), use_container_width=True)
+
+        sitout_10y = folder / "sitout_overlay_10y.png"
+        sitout_result_10y = sitout_overlay_chart(
+            data,
+            sitout_10y,
+            horizon="10y",
+            n_paths=paths,
+        )
+
+        st.markdown("### 1-Year Sit-Out Overlay")
+        st.image(str(sitout_1y), use_container_width=True)
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("Baseline median", f"${result['baseline_median']:,.0f}")
-        c2.metric("Sit-out median", f"${result['sitout_median']:,.0f}")
-        c3.metric("Median difference", f"${result['median_difference']:,.0f}")
+        c1.metric("Baseline median", f"${sitout_result_1y['baseline_median']:,.0f}")
+        c2.metric("Sit-out median", f"${sitout_result_1y['sitout_median']:,.0f}")
+        c3.metric("Median difference", f"${sitout_result_1y['median_difference']:,.0f}")
 
         st.download_button(
-            "Download chart",
-            data=chart.read_bytes(),
-            file_name=f"sitout_overlay_{horizon}.png",
+            "Download 1-year sit-out chart",
+            data=sitout_1y.read_bytes(),
+            file_name="sitout_overlay_1y.png",
+            mime="image/png",
+        )
+
+        st.divider()
+
+        st.markdown("### 10-Year Sit-Out Overlay")
+        st.image(str(sitout_10y), use_container_width=True)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Baseline median", f"${sitout_result_10y['baseline_median']:,.0f}")
+        c2.metric("Sit-out median", f"${sitout_result_10y['sitout_median']:,.0f}")
+        c3.metric("Median difference", f"${sitout_result_10y['median_difference']:,.0f}")
+
+        st.download_button(
+            "Download 10-year sit-out chart",
+            data=sitout_10y.read_bytes(),
+            file_name="sitout_overlay_10y.png",
             mime="image/png",
         )
 
     with tabs[5]:
         st.subheader("Full Report")
         st.write("Generate a zip containing all major charts and a summary text file.")
+
         zip_path = folder / "trading_analysis_report.zip"
         full_report_zip(data, zip_path)
 
