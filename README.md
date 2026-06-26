@@ -1,36 +1,67 @@
-# ALGO Edge Trading Analytics — Streamlit App
+# ALGO Edge Performance History
 
-This version generates the main required outputs immediately after upload:
+Deployable Streamlit app with:
 
-1. Daily return distribution
-2. 1-year Monte Carlo projection
-3. 10-year Monte Carlo projection
+- Historical equity curve
+- Full participation vs. three-month sit-out overlay
+- Configurable sit-out window
+- 1-year Monte Carlo projection
+- 10-year Monte Carlo projection
+- Ending-value distributions
+- Percentile summary table
 
-Optional checkboxes in the sidebar can also generate:
+## Streamlit Cloud deployment
 
-- Monte Carlo assumption check
-- Return magnitude / volatility clustering check
-- 1-year and 10-year sit-out-rule overlays
-- Full report zip
+1. Put these files in the root of your GitHub repository:
+   - `app.py`
+   - `requirements.txt`
+   - `.streamlit/config.toml`
 
-## CSV requirements
+2. Commit and push:
 
-Required columns:
+```bash
+git add app.py requirements.txt .streamlit/config.toml README.md
+git commit -m "Add sit-out overlay deployment build"
+git push
+```
 
-- `Date`
-- `Day_PL_Percent`
-- `Deposits/Withdrawals`
+3. In Streamlit Cloud, set the main file path to:
 
-Optional but recommended:
+```text
+app.py
+```
 
-- `NLV`
+## Local test
 
-## Deploy on Streamlit Community Cloud
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-Use:
+## Expected CSV formats
 
-- Repository: your repo
-- Branch: `main`
-- Main file path: `streamlit_app.py`
+Best format:
 
-The app does not need Discord tokens, API keys, or secrets.
+```csv
+date,balance
+2026-01-01,100000
+2026-01-02,100850
+```
+
+Also supported:
+
+```csv
+date,return
+2026-01-01,0.005
+2026-01-02,-0.002
+```
+
+or:
+
+```csv
+date,pnl
+2026-01-01,500
+2026-01-02,-200
+```
+
+For P/L-only files, the app reconstructs the balance from the sidebar starting balance.
