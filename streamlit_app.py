@@ -15,6 +15,7 @@ from trading_analytics import (
     sitout_overlay_chart,
 )
 
+
 st.set_page_config(
     page_title="ALGO Edge Trading Analytics",
     page_icon="📈",
@@ -22,7 +23,7 @@ st.set_page_config(
 )
 
 st.title("ALGO Edge Trading Analytics")
-st.caption("Upload a balance-history CSV and generate the Monte Carlo, return-distribution, and clustering checks.")
+st.caption("Upload a balance-history CSV to generate the return distribution plus 1-year and 10-year Monte Carlo projections.")
 
 with st.sidebar:
     st.header("Upload")
@@ -32,9 +33,9 @@ with st.sidebar:
     paths = st.slider("Simulation paths", min_value=500, max_value=5000, value=1000, step=500)
     show_all_paths = st.checkbox("Show all simulated paths", value=True)
 
-    st.header("Sit-Out Rule")
-    st.caption("Rule: after a negative rolling 3-month period, sit out 1 month.")
-    st.caption("Current version uses 63 trading days and 21 trading days.")
+    st.header("Optional Checks")
+    run_extra_checks = st.checkbox("Generate assumption / clustering checks", value=False)
+    run_sitout = st.checkbox("Generate sit-out overlays", value=False)
 
 
 def save_uploaded_file(file, folder: Path) -> Path:
@@ -47,7 +48,7 @@ if uploaded_file is None:
     st.info("Upload your latest balance-history CSV to begin.")
     st.markdown(
         """
-        The CSV should include these columns:
+        Required CSV columns:
 
         - `Date`
         - `Day_PL_Percent`
@@ -71,6 +72,8 @@ with tempfile.TemporaryDirectory() as td:
         st.error(f"Could not load the CSV: {exc}")
         st.stop()
 
+    st.success("CSV loaded successfully.")
+
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Cleaned trading days", f"{data.cleaned_rows}")
     col2.metric("Excluded nonzero rows", f"{data.excluded_nonzero_rows}")
@@ -79,125 +82,135 @@ with tempfile.TemporaryDirectory() as td:
 
     st.divider()
 
-    tabs = st.tabs(
-        [
-            "Daily Return Distribution",
-            "Monte Carlo Projections",
-            "Assumption Check",
-            "Magnitude Clustering",
-            "Sit-Out Overlay",
-            "Full Report",
-        ]
+    # ------------------------------------------------------------------
+    # 1. DAILY RETURN DISTRIBUTION
+    # ------------------------------------------------------------------
+    st.header("1. Daily Return Distribution")
+
+    with st.spinner("Generating daily return distribution..."):
+        distribution_chart = folder / "daily_return_distribution.png"
+        stats = return_distribution_chart(data, distribution_chart)
+
+    st.image(str(distribution_chart), use_container_width=True)
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Mean", f"{stats['mean']:+.3f}%")
+    c2.metric("Median", f"{stats['median']:+.3f}%")
+    c3.metric("Std dev", f"{stats['std']:.3f}%")
+    c4.metric("Skew", f"{stats['skew']:+.3f}")
+    c5.metric("Excess kurtosis", f"{stats['excess_kurtosis']:+.3f}")
+
+    st.download_button(
+        "Download distribution chart",
+        data=distribution_chart.read_bytes(),
+        file_name="daily_return_distribution.png",
+        mime="image/png",
     )
 
-    with tabs[0]:
-        st.subheader("Daily Return Distribution")
-        chart = folder / "daily_return_distribution.png"
-        stats = return_distribution_chart(data, chart)
-        st.image(str(chart), use_container_width=True)
+    st.divider()
 
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Mean", f"{stats['mean']:+.3f}%")
-        c2.metric("Median", f"{stats['median']:+.3f}%")
-        c3.metric("Std dev", f"{stats['std']:.3f}%")
-        c4.metric("Skew", f"{stats['skew']:+.3f}")
-        c5.metric("Excess kurtosis", f"{stats['excess_kurtosis']:+.3f}")
+    # ------------------------------------------------------------------
+    # 2. ONE-YEAR MONTE CARLO
+    # ------------------------------------------------------------------
+    st.header("2. 1-Year Monte Carlo Projection")
 
-        st.download_button(
-            "Download chart",
-            data=chart.read_bytes(),
-            file_name="daily_return_distribution.png",
-            mime="image/png",
-        )
-
-    with tabs[1]:
-        st.subheader("Monte Carlo Projections")
-        st.write("Generates both the 1-year and 10-year projections from the uploaded CSV.")
-
-        chart_1y = folder / "monte_carlo_1y.png"
+    with st.spinner("Generating 1-year Monte Carlo projection..."):
+        mc_1y_chart = folder / "monte_carlo_1y.png"
         result_1y = monte_carlo_chart(
             data,
-            chart_1y,
+            mc_1y_chart,
             horizon="1y",
             n_paths=paths,
             all_paths=show_all_paths,
         )
 
-        chart_10y = folder / "monte_carlo_10y.png"
+    st.image(str(mc_1y_chart), use_container_width=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Median ending NLV", f"${result_1y['median_ending']:,.0f}")
+    c2.metric("10th percentile", f"${result_1y['p10_ending']:,.0f}")
+    c3.metric("90th percentile", f"${result_1y['p90_ending']:,.0f}")
+    c4.metric("Positive paths", f"{result_1y['probability_positive']*100:.1f}%")
+
+    st.download_button(
+        "Download 1-year projection",
+        data=mc_1y_chart.read_bytes(),
+        file_name="monte_carlo_1y.png",
+        mime="image/png",
+    )
+
+    st.divider()
+
+    # ------------------------------------------------------------------
+    # 3. TEN-YEAR MONTE CARLO
+    # ------------------------------------------------------------------
+    st.header("3. 10-Year Monte Carlo Projection")
+
+    with st.spinner("Generating 10-year Monte Carlo projection..."):
+        mc_10y_chart = folder / "monte_carlo_10y.png"
         result_10y = monte_carlo_chart(
             data,
-            chart_10y,
+            mc_10y_chart,
             horizon="10y",
             n_paths=paths,
             all_paths=show_all_paths,
         )
 
-        st.markdown("### 1-Year Projection")
-        st.image(str(chart_1y), use_container_width=True)
+    st.image(str(mc_10y_chart), use_container_width=True)
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Median ending NLV", f"${result_1y['median_ending']:,.0f}")
-        c2.metric("10th percentile", f"${result_1y['p10_ending']:,.0f}")
-        c3.metric("90th percentile", f"${result_1y['p90_ending']:,.0f}")
-        c4.metric("Positive paths", f"{result_1y['probability_positive']*100:.1f}%")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Median ending NLV", f"${result_10y['median_ending']:,.0f}")
+    c2.metric("10th percentile", f"${result_10y['p10_ending']:,.0f}")
+    c3.metric("90th percentile", f"${result_10y['p90_ending']:,.0f}")
+    c4.metric("Median CAGR", f"{result_10y['median_cagr']*100:.1f}%")
+
+    st.download_button(
+        "Download 10-year projection",
+        data=mc_10y_chart.read_bytes(),
+        file_name="monte_carlo_10y.png",
+        mime="image/png",
+    )
+
+    st.divider()
+
+    # ------------------------------------------------------------------
+    # Optional checks
+    # ------------------------------------------------------------------
+    if run_extra_checks:
+        st.header("Optional Assumption / Clustering Checks")
+
+        st.subheader("Monte Carlo Assumption Check")
+        assumption_chart = folder / "monte_carlo_assumption_check.png"
+        corr = assumption_scatter_chart(data, assumption_chart)
+        st.image(str(assumption_chart), use_container_width=True)
+        st.metric("Day-to-day return correlation", f"{corr:+.3f}")
 
         st.download_button(
-            "Download 1-year chart",
-            data=chart_1y.read_bytes(),
-            file_name="monte_carlo_1y.png",
+            "Download assumption check",
+            data=assumption_chart.read_bytes(),
+            file_name="monte_carlo_assumption_check.png",
+            mime="image/png",
+        )
+
+        st.subheader("Return Magnitude / Volatility Clustering Check")
+        magnitude_chart = folder / "return_magnitude_clustering.png"
+        mag_corr = magnitude_clustering_chart(data, magnitude_chart)
+        st.image(str(magnitude_chart), use_container_width=True)
+        st.metric("Return magnitude correlation", f"{mag_corr:+.3f}")
+
+        st.download_button(
+            "Download magnitude clustering check",
+            data=magnitude_chart.read_bytes(),
+            file_name="return_magnitude_clustering.png",
             mime="image/png",
         )
 
         st.divider()
 
-        st.markdown("### 10-Year Projection")
-        st.image(str(chart_10y), use_container_width=True)
+    if run_sitout:
+        st.header("Optional Sit-Out Rule Overlays")
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Median ending NLV", f"${result_10y['median_ending']:,.0f}")
-        c2.metric("10th percentile", f"${result_10y['p10_ending']:,.0f}")
-        c3.metric("90th percentile", f"${result_10y['p90_ending']:,.0f}")
-        c4.metric("Median CAGR", f"{result_10y['median_cagr']*100:.1f}%")
-
-        st.download_button(
-            "Download 10-year chart",
-            data=chart_10y.read_bytes(),
-            file_name="monte_carlo_10y.png",
-            mime="image/png",
-        )
-
-    with tabs[2]:
-        st.subheader("Monte Carlo Assumption Check")
-        st.write("This checks whether one trading day's return meaningfully predicts the next trading day's return.")
-        chart = folder / "monte_carlo_assumption_check.png"
-        corr = assumption_scatter_chart(data, chart)
-        st.image(str(chart), use_container_width=True)
-        st.metric("Day-to-day return correlation", f"{corr:+.3f}")
-        st.download_button(
-            "Download chart",
-            data=chart.read_bytes(),
-            file_name="monte_carlo_assumption_check.png",
-            mime="image/png",
-        )
-
-    with tabs[3]:
-        st.subheader("Return Magnitude / Volatility Clustering Check")
-        st.write("This checks whether large moves — gains or losses — tend to be followed by more large moves.")
-        chart = folder / "return_magnitude_clustering.png"
-        mag_corr = magnitude_clustering_chart(data, chart)
-        st.image(str(chart), use_container_width=True)
-        st.metric("Return magnitude correlation", f"{mag_corr:+.3f}")
-        st.download_button(
-            "Download chart",
-            data=chart.read_bytes(),
-            file_name="return_magnitude_clustering.png",
-            mime="image/png",
-        )
-
-    with tabs[4]:
-        st.subheader("Sit-Out Rule Overlay")
-        st.write("Compares the baseline Monte Carlo against sitting out after a negative rolling 3-month period.")
-
+        st.subheader("1-Year Sit-Out Overlay")
         sitout_1y = folder / "sitout_overlay_1y.png"
         sitout_result_1y = sitout_overlay_chart(
             data,
@@ -205,16 +218,6 @@ with tempfile.TemporaryDirectory() as td:
             horizon="1y",
             n_paths=paths,
         )
-
-        sitout_10y = folder / "sitout_overlay_10y.png"
-        sitout_result_10y = sitout_overlay_chart(
-            data,
-            sitout_10y,
-            horizon="10y",
-            n_paths=paths,
-        )
-
-        st.markdown("### 1-Year Sit-Out Overlay")
         st.image(str(sitout_1y), use_container_width=True)
 
         c1, c2, c3 = st.columns(3)
@@ -223,15 +226,20 @@ with tempfile.TemporaryDirectory() as td:
         c3.metric("Median difference", f"${sitout_result_1y['median_difference']:,.0f}")
 
         st.download_button(
-            "Download 1-year sit-out chart",
+            "Download 1-year sit-out overlay",
             data=sitout_1y.read_bytes(),
             file_name="sitout_overlay_1y.png",
             mime="image/png",
         )
 
-        st.divider()
-
-        st.markdown("### 10-Year Sit-Out Overlay")
+        st.subheader("10-Year Sit-Out Overlay")
+        sitout_10y = folder / "sitout_overlay_10y.png"
+        sitout_result_10y = sitout_overlay_chart(
+            data,
+            sitout_10y,
+            horizon="10y",
+            n_paths=paths,
+        )
         st.image(str(sitout_10y), use_container_width=True)
 
         c1, c2, c3 = st.columns(3)
@@ -240,22 +248,26 @@ with tempfile.TemporaryDirectory() as td:
         c3.metric("Median difference", f"${sitout_result_10y['median_difference']:,.0f}")
 
         st.download_button(
-            "Download 10-year sit-out chart",
+            "Download 10-year sit-out overlay",
             data=sitout_10y.read_bytes(),
             file_name="sitout_overlay_10y.png",
             mime="image/png",
         )
 
-    with tabs[5]:
-        st.subheader("Full Report")
-        st.write("Generate a zip containing all major charts and a summary text file.")
+        st.divider()
 
+    # ------------------------------------------------------------------
+    # Full report
+    # ------------------------------------------------------------------
+    st.header("Full Report Zip")
+
+    with st.spinner("Preparing full report zip..."):
         zip_path = folder / "trading_analysis_report.zip"
         full_report_zip(data, zip_path)
 
-        st.download_button(
-            "Download full report zip",
-            data=zip_path.read_bytes(),
-            file_name="trading_analysis_report.zip",
-            mime="application/zip",
-        )
+    st.download_button(
+        "Download full report zip",
+        data=zip_path.read_bytes(),
+        file_name="trading_analysis_report.zip",
+        mime="application/zip",
+    )

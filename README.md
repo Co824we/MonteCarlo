@@ -1,11 +1,13 @@
 # ALGO Edge Trading Analytics — Streamlit App
 
-This is a Streamlit version of the trading analytics tool.
+This version generates the main required outputs immediately after upload:
 
-Users upload a balance-history CSV and the app generates:
+1. Daily return distribution
+2. 1-year Monte Carlo projection
+3. 10-year Monte Carlo projection
 
-- Daily return distribution
-- 1-year and 10-year Monte Carlo projections
+Optional checkboxes in the sidebar can also generate:
+
 - Monte Carlo assumption check
 - Return magnitude / volatility clustering check
 - 1-year and 10-year sit-out-rule overlays
@@ -22,15 +24,6 @@ Required columns:
 Optional but recommended:
 
 - `NLV`
-
-## Local run
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
 
 ## Deploy on Streamlit Community Cloud
 
